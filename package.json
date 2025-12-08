@@ -1,0 +1,17 @@
+{
+  "name": "generator-ui5-mobx",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "yaml": "^2.8.2",
+    "yeoman-generator": "^7.5.1"
+  }
+}

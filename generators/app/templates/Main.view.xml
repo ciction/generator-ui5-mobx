@@ -1,0 +1,75 @@
+<mvc:View controllerName="<%= namespace %>.controller.<%= viewName %>"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.ui.layout.form"
+  xmlns:core="sap.ui.core"
+  displayBlock="true">
+  <Page title="UI5 MobX Traffic Light" class="sapUiResponsiveContentPadding">
+    <content>
+      <VBox alignItems="Center" class="sapUiSmallMarginBottom">
+
+        <Avatar
+          displaySize="L"
+          class="sapUiSmallMarginBottom"
+          src="{= ${/isTrafficLightOn} ? 'sap-icon://status-positive' : 'sap-icon://status-inactive' }"
+          backgroundColor="{= ${/isTrafficLightOn} ? 'Accent1' : 'Transparent' }">
+        </Avatar>
+        <ObjectStatus
+          text="{= ${/isTrafficLightOn} ? 'ON' : 'OFF' }"
+          state="{= ${/isTrafficLightOn} ? 'Success' : 'None' }" />
+
+      </VBox>
+
+      <Panel headerText="Stats" class="sapUiSmallMarginBottom" expandable="true" expanded="true">
+        <f:SimpleForm layout="ResponsiveGridLayout">
+          <Label text="Active Scenario" />
+          <Text text="{/activeScenarioText}" />
+          <Label text="Total Switches On" />
+          <Text text="{/totalSwitchesOn}" />
+        </f:SimpleForm>
+      </Panel>
+
+      <Panel headerText="Main Control" class="sapUiSmallMarginBottom">
+        <SegmentedButton
+          width="100%"
+          selectedKey="{/mainSwitch}">
+          <items>
+            <SegmentedButtonItem text="Scenario A" key="A" />
+            <SegmentedButtonItem text="Scenario B" key="B" />
+          </items>
+        </SegmentedButton>
+      </Panel>
+
+      <Panel
+        headerText="Scenario A Controls (All 3 must be ON)"
+        class="sapUiSmallMarginBottom"
+        visible="{= ${/mainSwitch} === 'A' }">
+        <VBox class="sapUiSmallMargin">
+          <Switch state="{/scenarioA_Switches/s1}" customTextOn="A1" customTextOff="A1" />
+          <Switch state="{/scenarioA_Switches/s2}" customTextOn="A2" customTextOff="A2"
+            class="sapUiSmallMarginTop" />
+          <Switch state="{/scenarioA_Switches/s3}" customTextOn="A3" customTextOff="A3"
+            class="sapUiSmallMarginTop" />
+        </VBox>
+      </Panel>
+
+      <Panel
+        headerText="Scenario B Controls (At least 2 must be ON)"
+        class="sapUiSmallMarginBottom"
+        visible="{= ${/mainSwitch} === 'B' }">
+        <VBox class="sapUiSmallMargin">
+          <Switch state="{/scenarioB_Switches/s1}" customTextOn="B1" customTextOff="B1" />
+          <Switch state="{/scenarioB_Switches/s2}" customTextOn="B2" customTextOff="B2"
+            class="sapUiSmallMarginTop" />
+          <Switch state="{/scenarioB_Switches/s3}" customTextOn="B3" customTextOff="B3"
+            class="sapUiSmallMarginTop" />
+        </VBox>
+      </Panel>
+
+      <Panel>
+        <Button  text='Reset All' icon="sap-icon://refresh" press=".onResetAll"></Button>
+      </Panel>
+
+    </content>
+  </Page>
+</mvc:View>
