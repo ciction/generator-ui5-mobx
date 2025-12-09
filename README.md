@@ -67,6 +67,42 @@ After running the generator, your project will have:
 - ui5-tooling-modules-middleware
 - tsconfig.json: Added path mapping for cpro/js/ui5/mobx/*.
 
+## 🔧 Debugging
+
+#### Add Yeoman dev dependency (already included)
+```json
+"devDependencies": {
+    "yo": "^6.0.0"
+}
+```
+
+#### .vscode/launch.json congig
+
+
+```json
+{
+    // Debug Yeoman Generator
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Yeoman Generator",
+            "program": "${workspaceFolder}/node_modules/yo/lib/cli.js",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "args": [
+                "ui5-mobx"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "cwd": "YOUR-PROJECT-DIRECTORY-HERE",
+        }
+    ]
+}
+```
+
 ## ❓ Troubleshooting
 
 - **"Class extends value [object Module] is not a constructor"**
