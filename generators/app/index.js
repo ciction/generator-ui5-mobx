@@ -7,9 +7,15 @@ export default class extends Generator {
     this.log("Configuring MobX, UI5 Tooling Modules, and enforcing Middleware Order...");
 
     // -------------------------------------------
-    // 1. DETECT APP INFO
+    // 1. DETECT APP INFO & LANGUAGE
     // -------------------------------------------
     const manifestPath = this.destinationPath('webapp/manifest.json');
+    const tsconfigPath = this.destinationPath('tsconfig.json');
+    
+    // Detect if this is a TypeScript project
+    const isTs = this.fs.exists(tsconfigPath);
+    const lang = isTs ? 'ts' : 'js';
+    
     let appNamespace = "my.app";
     let mainViewName = "View1";
 
@@ -30,46 +36,56 @@ export default class extends Generator {
         }
     }
 
+    this.log(`Detected language: ${isTs ? 'TypeScript' : 'JavaScript'}`);
+
     // -------------------------------------------
     // 2. COPY TEMPLATES
     // -------------------------------------------
+    
+    // A. View (Shared)
     this.fs.copyTpl(
         this.templatePath('Main.view.xml'),
         this.destinationPath(`webapp/view/${mainViewName}.view.xml`),
         { namespace: appNamespace, viewName: mainViewName }
     );
+
+    // B. Controller (Language Specific)
+    // Copies templates/js/Main.controller.js -> webapp/controller/View1.controller.js
+    // OR     templates/ts/Main.controller.ts -> webapp/controller/View1.controller.ts
     this.fs.copyTpl(
-        this.templatePath('Main.controller.ts'),
-        this.destinationPath(`webapp/controller/${mainViewName}.controller.ts`),
+        this.templatePath(`${lang}/Main.controller.${lang}`),
+        this.destinationPath(`webapp/controller/${mainViewName}.controller.${lang}`),
         { namespace: appNamespace, viewName: mainViewName }
     );
+
+    // C. Store (Language Specific)
     this.fs.copy(
-        this.templatePath('MainStore.ts'),
-        this.destinationPath('webapp/store/MainStore.ts')
+        this.templatePath(`${lang}/MainStore.${lang}`),
+        this.destinationPath(`webapp/store/MainStore.${lang}`)
     );
+
+    // D. Documentation
     this.fs.copy(
         this.templatePath('README_MOBX.md'),
         this.destinationPath('README_MOBX.md')
     );
 
     // -------------------------------------------
-    // 3. UPDATE PACKAGE.JSON (Fix Dependencies)
+    // 3. UPDATE PACKAGE.JSON
     // -------------------------------------------
     const pkgJsonPath = this.destinationPath('package.json');
     const pkg = this.fs.readJSON(pkgJsonPath) || {};
 
-    // Dependencies
     pkg.dependencies = pkg.dependencies || {};
     pkg.dependencies["mobx"] = "^6.15.0";
     pkg.dependencies["ui5-mobx"] = "^0.2.3";
 
-    // DevDependencies
     pkg.devDependencies = pkg.devDependencies || {};
     pkg.devDependencies["ui5-tooling-modules"] = "^3.0.0";
+    // We need transpile for JS projects too (to handle ui5-mobx TS source)
     pkg.devDependencies["ui5-tooling-transpile"] = "^3.0.0";
     pkg.devDependencies["ui5-middleware-livereload"] = "^3.0.0";
 
-    // UI5 Dependencies (Critical Step)
     pkg.ui5 = pkg.ui5 || {};
     pkg.ui5.dependencies = pkg.ui5.dependencies || [];
     
@@ -88,10 +104,9 @@ export default class extends Generator {
     this.fs.writeJSON(pkgJsonPath, pkg);
 
     // -------------------------------------------
-    // 4. UPDATE TSCONFIG.JSON
+    // 4. UPDATE TSCONFIG.JSON (Only if TS)
     // -------------------------------------------
-    const tsconfigPath = this.destinationPath('tsconfig.json');
-    if (this.fs.exists(tsconfigPath)) {
+    if (isTs) {
         const tsconfig = this.fs.readJSON(tsconfigPath);
         if (!tsconfig.compilerOptions) tsconfig.compilerOptions = {};
         if (!tsconfig.compilerOptions.paths) tsconfig.compilerOptions.paths = {};
@@ -100,7 +115,7 @@ export default class extends Generator {
     }
 
     // -------------------------------------------
-    // 5. UPDATE UI5.YAML (Enforce Order)
+    // 5. UPDATE UI5.YAML
     // -------------------------------------------
     const ui5YamlPath = this.destinationPath('ui5.yaml');
     if (this.fs.exists(ui5YamlPath)) {
@@ -124,7 +139,6 @@ export default class extends Generator {
       if (!builder.has('customTasks')) builder.set('customTasks', new yaml.YAMLSeq());
       const tasks = builder.get('customTasks');
 
-      // Helper: Remove existing task to re-add in order
       const removeTask = (name) => {
           tasks.items = tasks.items.filter(i => i.get('name') !== name);
       };
@@ -132,7 +146,7 @@ export default class extends Generator {
       removeTask('ui5-tooling-transpile-task');
       removeTask('ui5-tooling-modules-task');
 
-      // Add Tasks in Order
+      // Add Tasks
       const transpileTask = new yaml.YAMLMap();
       transpileTask.set('name', 'ui5-tooling-transpile-task');
       transpileTask.set('afterTask', 'replaceVersion');
@@ -153,13 +167,12 @@ export default class extends Generator {
       modulesTask.set('configuration', modulesConfig);
       tasks.add(modulesTask);
 
-      // C. Middleware (Strict Order: Livereload -> Transpile -> Modules)
+      // C. Middleware
       if (!doc.has('server')) doc.set('server', new yaml.YAMLMap());
       const server = doc.get('server');
       if (!server.has('customMiddleware')) server.set('customMiddleware', new yaml.YAMLSeq());
       const middleware = server.get('customMiddleware');
 
-      // Remove existing to prevent duplicates and fix order
       const removeMiddleware = (name) => {
           middleware.items = middleware.items.filter(i => i.get('name') !== name);
       };
@@ -173,16 +186,19 @@ export default class extends Generator {
       livereload.set('afterMiddleware', 'compression');
       middleware.add(livereload);
 
-      // 2. Transpile (depends on livereload)
+      // 2. Transpile
       const transpile = new yaml.YAMLMap();
       transpile.set('name', 'ui5-tooling-transpile-middleware');
       transpile.set('afterMiddleware', 'ui5-middleware-livereload');
-      const transpileMiddlewareConfig = transpileConfig.clone(); // Re-use config
+      
+      // Clone config and ADD transpileDependencies for both JS and TS
+      const transpileMiddlewareConfig = transpileConfig.clone(); 
       transpileMiddlewareConfig.set('transpileDependencies', true);
+      
       transpile.set('configuration', transpileMiddlewareConfig);
       middleware.add(transpile);
 
-      // 3. Modules (depends on transpile)
+      // 3. Modules
       const modules = new yaml.YAMLMap();
       modules.set('name', 'ui5-tooling-modules-middleware');
       modules.set('afterMiddleware', 'ui5-tooling-transpile-middleware');
